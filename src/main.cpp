@@ -1,4 +1,5 @@
 #include <Arduino.h>
+#include <limits.h>
 
 const int GREEN_LED = 18;
 const int RED_LED   = 19;
@@ -16,12 +17,43 @@ int operandA = 0;
 int operandB = 0;
 int correctAnswer = 0;
 
+const bool CLEAR_TERMINAL_BETWEEN_SCREENS = true;
+
+ // SERIAL SCREEN CLEAR 
+void clearSerialTerminal() {
+  if (CLEAR_TERMINAL_BETWEEN_SCREENS) {
+    Serial.print("\033[2J\033[H");
+  }
+}
+
+// String.toInt() returns 0 for invalid text. Validating first prevents input
+// such as "hello" from being accepted as the numerical answer 0.
+bool parseInteger(const String &input, int &value) {
+  if (input.length() == 0) return false;
+
+  int index = 0;
+  if (input[0] == '-' || input[0] == '+') {
+    if (input.length() == 1) return false;
+    index = 1;
+  }
+
+  for (; index < input.length(); index++) {
+    if (!isDigit(input[index])) return false;
+  }
+
+  long parsed = input.toInt();
+  if (parsed < INT_MIN || parsed > INT_MAX) return false;
+  value = (int)parsed;
+  return true;
+}
+
 void setLEDs(bool greenOn, bool redOn) {
   digitalWrite(GREEN_LED, greenOn ? HIGH : LOW);
   digitalWrite(RED_LED, redOn ? HIGH : LOW);
 }
 
 void showMenu() {
+  clearSerialTerminal();
   setLEDs(false, false);
   Serial.println("\n=================================");
   Serial.println("         ESP32 MATHS QUIZ        ");
@@ -38,6 +70,8 @@ void showMenu() {
 }
 
 void generateQuestion() {
+  clearSerialTerminal();
+  setLEDs(false, false);
   switch (selectedOp) {
     case 1: // Addition
       operandA = random(1, 100);
@@ -113,8 +147,8 @@ void loop() {
   switch (currentState) {
     case STATE_MENU: {
       if (input.length() == 0) return;
-      int choice = input.toInt();
-      if (choice >= 1 && choice <= 7) {
+      int choice;
+      if (parseInteger(input, choice) && choice >= 1 && choice <= 7) {
         selectedOp = choice;
         currentState = STATE_ASK_QUESTION;
       } else {
@@ -132,7 +166,12 @@ void loop() {
         return;
       }
 
-      int userAnswer = input.toInt();
+      int userAnswer;
+      if (!parseInteger(input, userAnswer)) {
+        Serial.println("Invalid answer. Enter a whole number, or M for menu:");
+        return;
+      }
+
       Serial.printf("Your answer: %d\n", userAnswer);
       Serial.printf("Correct answer: %d\n", correctAnswer);
 
@@ -144,7 +183,7 @@ void loop() {
         setLEDs(false, true);
       }
 
-      Serial.println("\nPress 'Q') for another question\nor enter M to return to the menu.");
+      Serial.println("\nEnter Q for another question\nor M to return to the menu.");
       currentState = STATE_NEXT_PROMPT;
       break;
     }
@@ -153,9 +192,10 @@ void loop() {
       if (input.equalsIgnoreCase("M")) {
         currentState = STATE_MENU;
         showMenu();
-      } else {
-        // Any character, space, or newline advances to the next question
+      } else if (input.equalsIgnoreCase("Q")) {
         currentState = STATE_ASK_QUESTION;
+      } else {
+        Serial.println("Enter Q for another question or M for the menu:");
       }
       break;
     }
