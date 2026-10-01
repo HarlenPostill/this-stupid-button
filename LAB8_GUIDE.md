@@ -12,7 +12,7 @@
 ## Key BLE terms
 
 - **BLE server:** the ESP32. It owns the data, GATT service and characteristics,
-  advertises as `ESP32 Sonar Alarm`, accepts a client connection, processes
+  advertises as `ESP32 Sonar Alarm Boss`, accepts a client connection, processes
   writes, and sends notifications.
 - **BLE client:** the phone. It scans, connects, discovers the GATT database,
   reads and writes values, and subscribes to range notifications.
@@ -35,9 +35,9 @@ Custom service UUID:
 
 | UUID segment | Characteristic | Properties | Binary representation |
 |---:|---|---|---|
-| `0001` | Sonar range | Read, Notify | Little-endian `uint16` centimetres; `FFFF` means no valid echo |
+| `0001` | Sonar range | Read, Notify | Little-endian IEEE-754 `float32` metres; NaN means no valid echo |
 | `0002` | Alarm enable | Read, Write | `uint8`: `00` off, `01` on |
-| `0003` | Detection threshold | Read, Write | Little-endian `uint16` centimetres, valid range 2-400 |
+| `0003` | Detection threshold | Read, Write | Little-endian IEEE-754 `float32` metres, valid range 0.02-4.00 |
 | `0004` | Frequency selection | Read, Write | `uint8`: `01`=800 Hz, `02`=1600 Hz, `03`=2400 Hz |
 | `0005` | Volume | Read, Write | `uint8`: 0-100 percent |
 
@@ -58,8 +58,8 @@ settings and the phone initiated each change.
 - Range has a Client Characteristic Configuration Descriptor (`0x2902`). The
   phone writes this automatically when the user enables notifications.
 - Range and threshold have Characteristic Presentation Format descriptors
-  (`0x2904`): format `uint16`, Bluetooth unit metre (`0x2701`), exponent -2.
-  This defines each raw count as `10^-2 m`, which is exactly 1 cm.
+  (`0x2904`): format `FLOAT32`, Bluetooth unit metre (`0x2701`), exponent 0.
+  The transmitted numbers are therefore measurements directly in metres.
 - Characteristics have User Description descriptors (`0x2901`) that explain
   their payloads in readable text.
 
@@ -80,33 +80,34 @@ If asked why there are not several services, explain that several services would
 also work, but a single service is simpler and logically cohesive for this small
 application. Separating unrelated functions would be useful in a larger device.
 
-## Individual question 2: range representation and units
+## Individual question 2: range representation and changing units
 
 Suggested answer:
 
 > The echo pulse duration is the ultrasonic sound's round-trip travel time. The
-> code calculates one-way distance as `echo microseconds x 0.0343 / 2`. It rounds
-> the filtered result to a 16-bit unsigned integer in centimetres. BLE sends the
-> low byte first because the payload is little-endian. For example, 50 cm is
-> decimal 50, hexadecimal `0x0032`, so the phone sends or receives `32 00`. The
-> `0x2904` descriptor defines `uint16`, metre, exponent -2, which means centimetres.
+> code calculates one-way distance in metres as
+> `echo microseconds x 0.000343 / 2`. After median filtering, range is sent as a
+> four-byte little-endian IEEE-754 `float32`. For example, 50 cm is reported as
+> 0.50 m, whose bytes are `00 00 00 3F`. The threshold uses exactly the same
+> float32-metres representation. The `0x2904` descriptor defines FLOAT32, metre,
+> exponent 0, so the client can interpret the value correctly.
 
 The firmware takes three sonar samples and uses the median of the valid samples
-to reject occasional reflected or stray echoes. `FFFF` represents no valid echo;
-this can be reported to the phone but never activates the buzzer.
+to reject occasional reflected or stray echoes. IEEE-754 NaN represents no valid
+echo; it can be reported to the phone but never activates the buzzer.
 
-### If the tutor changes the unit to metres
+### Explaining the change from centimetres to metres
 
 Suggested answer:
 
-> Range and threshold must always use the same representation and unit. If the
-> range changes from centimetres to metres, a 50 cm measurement and threshold
-> must both become 0.50 m. I would change both characteristic payload formats,
-> both conversions, both descriptors, and the comparison variables together.
-> Changing only the displayed range would cause incorrect alarm decisions.
-
-One suitable redesign would use IEEE-754 `float32` metres for both range and
-threshold and change the `0x2904` format to `FLOAT32` with metre exponent 0.
+> Range and threshold must always use the same representation and unit. I changed
+> both from integer centimetres to float32 metres. Therefore a reported range of
+> 50 cm changed from integer 50 to float 0.50 m, and a 50 cm threshold also
+> changed to 0.50 m. I updated the sonar conversion, both application variables,
+> both BLE payloads, threshold callback validation, characteristic descriptions,
+> presentation-format descriptors, serial output and phone payload instructions.
+> The alarm comparison is still `range < threshold`, but both operands are now
+> metres. Converting only one value would produce incorrect alarm behaviour.
 
 ## Individual question 3: how phone writes control the buzzer
 
@@ -115,7 +116,7 @@ Suggested answer:
 > A phone write is delivered by ATT to the selected GATT characteristic. The BLE
 > library then calls my `ControlCallbacks::onWrite()` callback. The callback reads
 > the byte array, checks its exact length and allowed range, and updates the
-> corresponding ESP32 variable: `alarmEnabled`, `thresholdCm`, `toneSelection`,
+> corresponding ESP32 variable: `alarmEnabled`, `thresholdMetres`, `toneSelection`,
 > or `volumePercent`. It rejects invalid data and restores the characteristic's
 > previous valid value. The main loop notices `configChanged` and immediately
 > calls `updateBuzzer()`. LEDC then applies the selected hardware PWM frequency
@@ -130,7 +131,7 @@ passive buzzer.
 
 - Enable validation is in the `Control::Enable` case of `onWrite()`.
 - Threshold decoding/validation is in `Control::Threshold` and
-  `readUint16LE()`.
+  `readFloat32LE()`.
 - Frequency choices are in `BUZZER_FREQUENCIES_HZ` and `Control::Tone`.
 - Volume validation is in `Control::Volume`; duty conversion is in
   `updateBuzzer()`.
@@ -164,14 +165,14 @@ Suggested answer:
 
 Important predictions:
 
-- Enabled, range 49 cm, threshold 50 cm, volume above zero: **ON**.
-- Enabled, range exactly 50 cm, threshold 50 cm: **OFF**, because the code uses
+- Enabled, range 0.49 m, threshold 0.50 m, volume above zero: **ON**.
+- Enabled, range exactly 0.50 m, threshold 0.50 m: **OFF**, because the code uses
   strictly less than (`<`), not less than or equal.
-- Enabled, range 65 cm, threshold changed from 50 to 70 cm: **ON**.
-- Range moves from 65 to 75 cm with threshold 70 cm: **OFF**.
+- Enabled, range 0.65 m, threshold changed from 0.50 to 0.70 m: **ON**.
+- Range moves from 0.65 to 0.75 m with threshold 0.70 m: **OFF**.
 - Alarm disabled: **OFF**, regardless of range.
 - Volume set to zero: no buzzer output.
-- No valid sonar echo (`FFFF`): **OFF** for safety.
+- No valid sonar echo (NaN): **OFF** for safety.
 
 ## Complete phone-to-hardware information flow
 
@@ -193,7 +194,7 @@ For a range notification:
 ```text
 HC-SR04 trigger and echo
   -> pulseIn() measures round-trip time
-  -> convert/filter into uint16 centimetres
+  -> convert/filter into float32 metres
   -> update range characteristic
   -> notify()
   -> BLE notification
@@ -203,13 +204,13 @@ HC-SR04 trigger and echo
 ## Demonstration procedure
 
 1. Open the serial monitor at 115200 baud and start nRF Connect.
-2. Connect to `ESP32 Sonar Alarm` and expand the custom service.
+2. Connect to `ESP32 Sonar Alarm Boss` and expand the custom service.
 3. Enable notifications on Range (`...0001`) and move an object to show changing
    phone values and serial measurements.
 4. Write `01` to Enable (`...0002`).
-5. Write `46 00` to Threshold (`...0003`) for 70 cm.
-6. At a measured 65 cm, predict **ON**, then show that the buzzer sounds.
-7. Move the object beyond 70 cm, predict **OFF**, and show that it stops.
+5. Write `33 33 33 3F` to Threshold (`...0003`) for 0.70 m.
+6. At a measured 0.65 m, predict **ON**, then show that the buzzer sounds.
+7. Move the object beyond 0.70 m, predict **OFF**, and show that it stops.
 8. Write `01`, `02` and `03` to Frequency (`...0004`) and demonstrate the three
    distinguishable tones while the object is inside the threshold.
 9. Write `19`, `32` and `64` to Volume (`...0005`) to demonstrate 25%, 50% and
@@ -224,9 +225,9 @@ Use hexadecimal/byte-array mode in nRF Connect, not text mode.
 |---|---|---|
 | Disable alarm | Enable `...0002` | `00` |
 | Enable alarm | Enable `...0002` | `01` |
-| Threshold 50 cm | Threshold `...0003` | `32 00` |
-| Threshold 70 cm | Threshold `...0003` | `46 00` |
-| Threshold 100 cm | Threshold `...0003` | `64 00` |
+| Threshold 0.50 m | Threshold `...0003` | `00 00 00 3F` |
+| Threshold 0.70 m | Threshold `...0003` | `33 33 33 3F` |
+| Threshold 1.00 m | Threshold `...0003` | `00 00 80 3F` |
 | Select 800 Hz | Frequency `...0004` | `01` |
 | Select 1600 Hz | Frequency `...0004` | `02` |
 | Select 2400 Hz | Frequency `...0004` | `03` |
@@ -234,8 +235,8 @@ Use hexadecimal/byte-array mode in nRF Connect, not text mode.
 | Volume 50% | Volume `...0005` | `32` |
 | Volume 100% | Volume `...0005` | `64` |
 
-Example notification decoding: a range payload of `41 00` is `0x0041`, which is
-decimal 65 cm.
+Example notification decoding: a range payload of `66 66 26 3F` is the
+little-endian IEEE-754 float32 representation of approximately 0.65 m.
 
 ## Required explanation: changes from the Week 7 BLE demo
 
