@@ -4,8 +4,6 @@
 #include <ArduinoJson.h>
 #include "lab_config.h"
 
-// Standalone Week 8 slides 32-37 practice. Build with -e week8_demo.
-// Disconnect the Week 9 buzzer/button before using these LED pins.
 WiFiClient espClient;
 PubSubClient client(espClient);
 String clientID, rssiTopic, ledTopic, statusTopic;
