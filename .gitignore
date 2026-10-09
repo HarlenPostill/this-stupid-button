@@ -7,3 +7,5 @@ tmp/
 .vscode/ipch
 
 **/secrets.h
+cloud/.env
+**/__pycache__/

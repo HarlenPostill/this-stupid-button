@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Microphone board wiring</title>
+<style>
+body{margin:0;color:var(--foreground);background:var(--background);font-family:var(--font-sans,system-ui);font-size:14px;line-height:1.5}
+*{box-sizing:border-box}h2{font-size:18px;font-weight:500;margin:0 0 12px}h3{font-size:15px;font-weight:500;margin:0 0 8px}
+.connections{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:24px}table{border-collapse:collapse;width:100%;text-align:left}th{font-weight:500}th,td{padding:8px 5px;border-bottom:1px solid var(--border);vertical-align:top}th:first-child,td:first-child{padding-left:0}code{font-family:var(--font-mono,monospace);font-size:13px}caption{text-align:left;font-weight:500;margin-bottom:6px}small{color:var(--muted-foreground);font-size:12px}a{color:var(--accent-foreground)}
+.rails{display:flex;flex-wrap:wrap;gap:12px 28px;margin:18px 0;padding:12px 0;border-block:1px solid var(--border)}.rails span{display:inline-flex;align-items:center;gap:8px}.rail{display:inline-block;width:25px;height:4px;background:var(--foreground)}.flow{display:flex;align-items:center;flex-wrap:wrap;gap:10px;margin:16px 0}.notes{display:grid;gap:6px;margin-top:16px}.states{display:flex;gap:16px;flex-wrap:wrap;margin:20px 0 16px}.states span{white-space:nowrap}.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}.green{background:var(--success)}.orange{background:var(--warning)}.red{background:var(--destructive)}
+</style></head><body>
+<h2>Wire with USB disconnected</h2>
+<small>Use the ESP32’s printed GPIO labels. Header positions vary between dev boards.</small>
+<div class="rails" aria-label="Three separate breadboard rails"><span><i class="rail"></i>3V3 → mic only</span><span><i class="rail"></i>5V → LEDs only</span><span><i class="rail"></i>GND → both modules</span></div>
+<div class="connections">
+<table><caption>INMP441 microphone</caption><thead><tr><th>Mic pin</th><th>ESP32 connection</th></tr></thead><tbody>
+<tr><td>VDD / VCC</td><td><code>3V3</code></td></tr><tr><td>GND</td><td><code>GND</code></td></tr><tr><td>SCK / BCLK</td><td><code>GPIO26</code></td></tr><tr><td>WS / LRCLK</td><td><code>GPIO25</code></td></tr><tr><td>SD / DOUT</td><td><code>GPIO33</code></td></tr><tr><td>L/R</td><td><code>GND</code> — left channel</td></tr>
+</tbody></table>
+<table><caption>Freenove 8 RGB LEDs — IN connector</caption><thead><tr><th>LED pin</th><th>ESP32 connection</th></tr></thead><tbody>
+<tr><td>V</td><td><code>5V / VBUS</code> from USB-powered board</td></tr><tr><td>G</td><td><code>GND</code></td></tr><tr><td>S</td><td><code>GPIO2</code> through <strong>220 Ω</strong></td></tr><tr><td>OUT</td><td>Leave unconnected</td></tr>
+</tbody></table></div>
+<div class="flow" aria-label="LED data connection"><code>GPIO2</code><span>→</span><strong>220 Ω resistor</strong><span>→</span><code>LED IN: S</code></div>
+<div class="notes"><div><strong>220 Ω:</strong> series LED data resistor; either direction.</div><div><strong>1 kΩ / 10 kΩ:</strong> not required. Mic SD uses the ESP32’s internal pull-down.</div><div><strong>Power:</strong> keep 3V3 and 5V rails separate; never power the mic from 5V.</div><div><strong>Signal reliability:</strong> if direct 3.3V LED data is unreliable, add a 5V-powered 74AHCT125. Resistors cannot raise the logic voltage.</div><div><strong>Board pin:</strong> verify 5V/VBUS is USB-powered; a pin labelled VIN may be input-only.</div></div>
+<div class="states" aria-label="Default rising-sound colour thresholds"><span><i class="dot green"></i>Green: below 80 dB</span><span><i class="dot orange"></i>Orange: 80–94.9 dB</span><span><i class="dot red"></i>Red: 95 dB and above</span></div>
+<small>2 dB reset hysteresis · purple = microphone fault · estimated unweighted SPL.<br>LED supply and IN/OUT pin reference: <a href="https://docs.freenove.com/projects/fnk0047/en/latest/fnk0047/codes/C/6_LEDPixel.html">Freenove Chapter 6</a>.</small>
+</body></html>
