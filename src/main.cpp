@@ -246,7 +246,7 @@ bool publishSnapshot() {
   char json[1024];
   if (measureJson(doc) >= sizeof(json)) return false;
   serializeJson(doc, json, sizeof(json));
-  // Telegraf consumes ONLY unretained telemetry. Retained status is for board 2.
+  // Telegraf and board 2 consume live telemetry. Status is a retained viewer snapshot.
   const bool telemetrySent = mqtt.publish(telemetryTopic.c_str(), json, false);
   const bool statusSent = mqtt.publish(statusTopic.c_str(), json, true);
   return telemetrySent && statusSent;

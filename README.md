@@ -1,10 +1,12 @@
-# Building exterior noise monitor — microphone board
+# Building noise monitor and breaker-box controller
 
 The first ESP32 measures sound outside a building, gives immediate feedback on
 eight RGB LEDs, and publishes numeric sound levels and sensor health to the lab
 MQTT broker. Telegraf stores these messages in the existing lab InfluxDB 2.x
 bucket; Grafana presents the trends and state changes. No audio is uploaded.
-The second ESP32 is outside this implementation pass.
+The second ESP32 adds an SG90 button presser triggered by sustained noise and an
+independent ultrasonic door monitor. See [second-board wiring, upload and operation](docs/SECOND_BOARD.md).
+Use the `actuator_board` environment for that board; `upesy_wrover` remains the microphone.
 
 Local communication is a Wi-Fi web page/API that adjusts noise thresholds and
 the calibration offset. Changes affect actual embedded control and telemetry,
@@ -182,8 +184,8 @@ ingestion. Previously stored data remains in InfluxDB when this computer stops.
 
 | Topic under `iot2026/<group>/noise/<device>/` | Purpose | Retained? |
 | --- | --- | --- |
-| `telemetry` | Telegraf ingestion, `noise_monitor` measurement | No |
-| `status` | Latest JSON for future board 2 | Yes |
+| `telemetry` | Telegraf ingestion and board 2 live noise subscription | No |
+| `status` | Retained snapshot for viewers | Yes |
 | `availability` | `online`, MQTT last will `offline` | Yes |
 
 Device ID is `noise-mic-` plus ESP32 station MAC. Messages include
@@ -203,9 +205,8 @@ chain. Telegraf timestamps at receipt, not capture; age/sequence expose
 freshness. This is not a lossless recorder.
 
 The public unencrypted broker matches the lab. A real deployment should use a
-private authenticated TLS broker and protected local configuration. Board 2
-should check availability and fresh sequence/boot updates rather than trust a
-retained state indefinitely.
+private authenticated TLS broker and protected local configuration. Board 2 checks fresh telemetry, sequence/boot updates and connection state; it
+does not use retained status for automatic triggering. See [its guide](docs/SECOND_BOARD.md).
 
 ## Measurement and calibration
 
@@ -283,7 +284,7 @@ Proposed responsibility split — replace with actual names and work performed:
 
 Individual videos should explain actual owned code, calculations/protocols,
 design choices, testing and troubleshooting in the full-system context.
-Board 2 still needs its own implementation.
+Include the second-board servo logic, door filtering, MQTT subscription and dashboard work in the actual responsibility declaration.
 
 ## Troubleshooting
 

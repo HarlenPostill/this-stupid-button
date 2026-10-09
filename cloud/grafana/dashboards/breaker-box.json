@@ -1,0 +1,553 @@
+{
+  "id": null,
+  "uid": "breaker-box",
+  "title": "Breaker box door and button controller",
+  "description": "ESP32 #2: independent ultrasonic door monitoring and sustained-noise servo response.",
+  "schemaVersion": 41,
+  "version": 1,
+  "editable": true,
+  "tags": [
+    "IoT",
+    "door",
+    "servo"
+  ],
+  "timezone": "browser",
+  "refresh": "5s",
+  "time": {
+    "from": "now-15m",
+    "to": "now"
+  },
+  "templating": {
+    "list": [
+      {
+        "name": "group",
+        "label": "Group",
+        "type": "query",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "noise-influx"
+        },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: v.defaultBucket, tag: \"group\", predicate: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\", start: -1d)",
+        "definition": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: v.defaultBucket, tag: \"group\", predicate: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\", start: -1d)",
+        "refresh": 1,
+        "sort": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      },
+      {
+        "name": "device",
+        "label": "Cabinet board",
+        "type": "query",
+        "datasource": {
+          "type": "influxdb",
+          "uid": "noise-influx"
+        },
+        "query": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: v.defaultBucket, tag: \"device\", predicate: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\" and r.group =~ /^${group:regex}$/, start: -1d)",
+        "definition": "import \"influxdata/influxdb/schema\"\nschema.tagValues(bucket: v.defaultBucket, tag: \"device\", predicate: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\" and r.group =~ /^${group:regex}$/, start: -1d)",
+        "refresh": 1,
+        "sort": 1,
+        "includeAll": true,
+        "allValue": ".*",
+        "multi": true,
+        "current": {
+          "selected": true,
+          "text": [
+            "All"
+          ],
+          "value": [
+            "$__all"
+          ]
+        },
+        "options": []
+      }
+    ]
+  },
+  "links": [
+    {
+      "title": "Exterior noise",
+      "url": "/d/building-noise",
+      "type": "link",
+      "keepTime": true
+    }
+  ],
+  "panels": [
+    {
+      "id": 1,
+      "title": "Breaker box door (last 15 s)",
+      "type": "stat",
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -15s, stop: now())\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => r._field == \"door_state_code\")\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])\n  |> group(columns: [\"device\"])\n  |> sort(columns: [\"_time\"])\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "displayName": "${__field.labels.device}",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Closed",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Open",
+                  "color": "red"
+                },
+                "2": {
+                  "text": "Unknown / no echo",
+                  "color": "purple"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 2,
+      "title": "Door distance (last 15 s)",
+      "type": "stat",
+      "gridPos": {
+        "x": 6,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -15s, stop: now())\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => r._field == \"distance_cm\")\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])\n  |> group(columns: [\"device\"])\n  |> sort(columns: [\"_time\"])\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthcm",
+          "decimals": 1,
+          "displayName": "${__field.labels.device}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 3,
+      "title": "Microphone input (last 15 s)",
+      "type": "stat",
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -15s, stop: now())\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => r._field == \"noise_fresh\")\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])\n  |> group(columns: [\"device\"])\n  |> sort(columns: [\"_time\"])\n  |> last()\n  |> map(fn: (r) => ({r with _value: if r._value then 1 else 0}))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "displayName": "${__field.labels.device}",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Stale / unavailable",
+                  "color": "red"
+                },
+                "1": {
+                  "text": "Fresh",
+                  "color": "green"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 4,
+      "title": "Presses since cabinet reboot",
+      "type": "stat",
+      "gridPos": {
+        "x": 18,
+        "y": 0,
+        "w": 6,
+        "h": 4
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: -15s, stop: now())\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => r._field == \"press_count\")\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])\n  |> group(columns: [\"device\"])\n  |> sort(columns: [\"_time\"])\n  |> last()"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "displayName": "${__field.labels.device}"
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": {
+          "calcs": [
+            "lastNotNull"
+          ],
+          "fields": "",
+          "values": false
+        },
+        "colorMode": "value",
+        "graphMode": "none",
+        "textMode": "auto"
+      }
+    },
+    {
+      "id": 5,
+      "title": "Distance and configured door threshold",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 4,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => contains(value: r._field, set: [\"distance_cm\", \"door_threshold_cm\"]))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"device\"])\n  |> group(columns: [\"_field\", \"device\"])\n  |> sort(columns: [\"_time\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "lengthcm",
+          "decimals": 1,
+          "displayName": "${__field.name} (${__field.labels.device})",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Missing measurements are omitted. Refer to the freshness / door-state panels for faults."
+    },
+    {
+      "id": 7,
+      "title": "Received microphone level and servo trigger",
+      "type": "timeseries",
+      "gridPos": {
+        "x": 0,
+        "y": 18,
+        "w": 24,
+        "h": 8
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => contains(value: r._field, set: [\"noise_db\", \"trigger_db\"]))\n  |> aggregateWindow(every: v.windowPeriod, fn: last, createEmpty: false)\n  |> keep(columns: [\"_time\", \"_value\", \"_field\", \"device\"])\n  |> group(columns: [\"_field\", \"device\"])\n  |> sort(columns: [\"_time\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "dB",
+          "decimals": 1,
+          "displayName": "${__field.name} (${__field.labels.device})",
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "spanNulls": false
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": {
+          "displayMode": "list",
+          "placement": "bottom"
+        },
+        "tooltip": {
+          "mode": "multi"
+        }
+      },
+      "description": "Missing measurements are omitted. Refer to the freshness / door-state panels for faults."
+    },
+    {
+      "id": 6,
+      "title": "Door history",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 12,
+        "w": 24,
+        "h": 6
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => r._field == \"door_state_code\")\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])\n  |> group(columns: [\"device\"])\n  |> sort(columns: [\"_time\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "displayName": "${__field.labels.device}",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Closed",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Open",
+                  "color": "red"
+                },
+                "2": {
+                  "text": "Unknown / no echo",
+                  "color": "purple"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 8,
+      "title": "Servo press / return history",
+      "type": "state-timeline",
+      "gridPos": {
+        "x": 0,
+        "y": 26,
+        "w": 24,
+        "h": 6
+      },
+      "datasource": {
+        "type": "influxdb",
+        "uid": "noise-influx"
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "datasource": {
+            "type": "influxdb",
+            "uid": "noise-influx"
+          },
+          "query": "from(bucket: v.defaultBucket)\n  |> range(start: v.timeRangeStart, stop: v.timeRangeStop)\n  |> filter(fn: (r) => r._measurement == \"cabinet_monitor\" and r.location == \"breaker_box\")\n  |> filter(fn: (r) => r.group =~ /^${group:regex}$/ and r.device =~ /^${device:regex}$/)\n  |> filter(fn: (r) => r._field == \"servo_phase_code\")\n  |> keep(columns: [\"_time\", \"_value\", \"device\"])\n  |> group(columns: [\"device\"])\n  |> sort(columns: [\"_time\"])"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "none",
+          "decimals": 0,
+          "displayName": "${__field.labels.device}",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": {
+                  "text": "Idle / reset",
+                  "color": "green"
+                },
+                "1": {
+                  "text": "Pressing",
+                  "color": "orange"
+                },
+                "2": {
+                  "text": "Holding",
+                  "color": "red"
+                },
+                "3": {
+                  "text": "Returning",
+                  "color": "blue"
+                }
+              }
+            }
+          ],
+          "color": {
+            "mode": "fixed",
+            "fixedColor": "green"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "mergeValues": true,
+        "showValue": "auto",
+        "rowHeight": 0.8,
+        "legend": {
+          "showLegend": true,
+          "placement": "bottom"
+        }
+      }
+    },
+    {
+      "id": 9,
+      "title": "How the controller behaves",
+      "type": "text",
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 24,
+        "h": 5
+      },
+      "options": {
+        "mode": "markdown",
+        "content": "Door sensing is independent of servo control. Default: **open above 20 cm**, closed at or below 18 cm after median filtering and a 600 ms stable candidate. No echo is **unknown**, never closed.\n\nDefault servo trigger: fresh microphone readings **\u226590 dB for 3 seconds**, one press and return. Rearms after 3 seconds below 88 dB after return. Configure endpoints, timing and thresholds through the cabinet board\u2019s local web page. Mic values already include its configured 15 dB reduction.\n\nThis is a bench demonstration, using an estimated noise level and a mock button. An MQTT publish confirms a command was issued; there is no button-contact feedback. Public lab broker and LAN control page are unauthenticated; they are unsuitable for controlling a real electrical breaker. Software test points are excluded."
+      }
+    }
+  ]
+}

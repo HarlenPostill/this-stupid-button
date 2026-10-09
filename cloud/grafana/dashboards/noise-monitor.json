@@ -508,5 +508,13 @@
         "content": "500 ms RMS, DC removed, sampled at 16 kHz. **Estimated, unweighted dB SPL; not dBA or certified safety/compliance measurements.** Orange defaults to 80 dB, red to 95 dB; actual thresholds are plotted. A 2 dB reset hysteresis prevents flicker. Purple indicates mic fault.\n\nTelegraf assigns receipt timestamps. Missing noise values on mic faults are intentional. Stat panels use only the last 15 seconds; **No data** means the cloud path has stopped or no fresh sample exists. The trend shows the latest sampled window per plot interval, not a continuous recording or Leq. No raw audio is stored."
       }
     }
+  ],
+  "links": [
+    {
+      "title": "Breaker box door / servo",
+      "url": "/d/breaker-box",
+      "type": "link",
+      "keepTime": true
+    }
   ]
 }

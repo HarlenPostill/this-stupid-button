@@ -1,8 +1,26 @@
 #pragma once
 #include <cmath>
+#include <cstring>
 #include <stdint.h>
 
 namespace Cabinet {
+class SequenceGuard {
+ public:
+  bool accept(const char *boot, uint32_t sequence, bool &restarted) {
+    if (!boot || std::strlen(boot) != 16) return false;
+    for (int i = 0; i < 16; ++i)
+      if (!((boot[i] >= '0' && boot[i] <= '9') || (boot[i] >= 'a' && boot[i] <= 'f') ||
+            (boot[i] >= 'A' && boot[i] <= 'F'))) return false;
+    restarted = !seen || std::strcmp(boot, previousBoot) != 0;
+    if (!restarted && int32_t(sequence - previousSequence) <= 0) return false;
+    std::memcpy(previousBoot, boot, 17); previousSequence = sequence; seen = true;
+    return true;
+  }
+ private:
+  char previousBoot[17]{};
+  uint32_t previousSequence = 0;
+  bool seen = false;
+};
 struct Settings {
   float triggerDb = 90, restAngle = 90, pressAngle = 0, doorThresholdCm = 20;
   uint32_t sustainMs = 3000, travelMs = 500, holdMs = 500;
