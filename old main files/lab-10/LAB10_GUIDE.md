@@ -1,9 +1,4 @@
-# ESP32 environmental monitor: homework and lab guide
-
-This guide follows **W9. IoT Cloud 2026.pdf**, printed slides 35-45 (the attached
-11-page extract). Your previous MQTT fire-alarm lab is now archived under
-`old main files/lab-9/`. The new monitoring lab is called lab-10 in this repo;
-its only active source file is `src/main.cpp`.
+# ESP32 environmental monitor: lab guide
 
 ## 1. What is ready, and what you must do on hardware
 
@@ -214,34 +209,16 @@ Wait at least 30 seconds for the first cloud point. The Serial Monitor has
 newline-terminated commands; enter `help` to see their syntax. Commands are
 local to the attached ESP32; no remote-control API or MQTT broker is involved.
 
-## 6. Complete the homework first
+## 6. Firmware mode and existing homework evidence
 
-1. Wire only the thermistor divider in section 3. In `include/lab_config.h`, set
-   `HOMEWORK_ONLY = true`, then build and upload. In this mode GPIO35 is not read.
-2. Complete section 4. Use your own group and student ID.
-3. Watch valid temperatures and **InfluxDB write OK** in Serial Monitor. This
-   mode writes `lecture_temperature` with `temperature_c`, the identity tags,
-   timestamp and useful diagnostics. It uses the same client, cloud CA, Point
-   and write APIs as the lecture; `get_temp()` is now implemented as the NTC
-   conversion rather than left as an exercise.
-4. Open Data Explorer. Select your bucket and **Last 15 minutes**, filter
-   `_measurement = lecture_temperature`, `group_id = your group`, and
-   `student_id = your ID`. Select `_field = temperature_c`, run/submit the
-   query and choose Graph. Gently hold the thermistor with fingers for 30-60
-   seconds to generate a visible change.
-5. Switch to Table/Raw Data so your student ID tag and real timestamps are
-   visible. Capture a graph screenshot and a table screenshot with your ID.
-   Show the bucket, measurement and range in the captures; hide account tokens.
-6. Save the actual screenshots, for example as `homework-temperature-graph.png`
-   and `homework-student-id-table.png`. Prepare them for the first ten minutes
-   of class. Do not submit example/simulated values as homework proof.
-7. Disconnect USB, add the LDR divider, restore `HOMEWORK_ONLY = false`, and
-   rebuild/upload for the group lab. Homework data remains under its separate
-   measurement so you can still inspect it without overwriting the lab data.
+The firmware now always runs the full environmental monitor: both sensors are
+sampled and points are written to `environment`. There is no homework-only
+setting or temperature-only upload path.
 
-If your tutor accepts the complete monitor as demo proof, its `temperature_c`
-graph and student-ID table also show the same chain. The separate homework mode
-makes the temperature-only lecture exercise easy to demonstrate explicitly.
+Keep your completed homework screenshots. Previously uploaded
+`lecture_temperature` points remain in InfluxDB until their retention period
+expires; `queries/homework-temperature.flux` can still inspect that historical
+data. New readings use `environment`.
 
 ## 7. Your own schema and justification
 
@@ -263,7 +240,7 @@ and the number of distinct tag combinations also matter.
 | `room` | Tag/string | Few locations, useful room filter; `lab_bench` default |
 | `zone` | Tag/string | Few zones/floors, useful grouping; `ground` default |
 | `device_model` | Tag/string | Few models, useful comparison; ESP32_WROVER default |
-| `sensor_types` | Tag/string | Few sensor combinations; NTC10k_LDR lab / NTC10k homework |
+| `sensor_types` | Tag/string | Few sensor combinations; NTC10k_LDR for this monitor |
 | `temperature_c` | Field/float | Compulsory measured quantity in Celsius; continuously changes |
 | `light_percent` | Field/float | Compulsory relative light measurement; continuously changes |
 | `environment_status` | Field/string | Compulsory classification; changes without splitting tag series |
@@ -511,7 +488,7 @@ Prepare genuine evidence of:
 | Lecture extract | This implementation and reason |
 | --- | --- |
 | Slides 38-40: cloud client, CA certificate, Point and connection validation | Retained the same APIs and library 3.13.2; direct HTTPS to the v2 bucket |
-| Demo measurement `kaisesp32`, field `temp`; `get_temp()` left for students | Defined `environment` and `temperature_c`, implemented the NTC equation; separate `lecture_temperature` homework mode |
+| Demo measurement `kaisesp32`, field `temp`; `get_temp()` left for students | Defined `environment` and `temperature_c`, implemented the NTC equation |
 | One thermistor, analog input defined as 1, resolution 11 bits | Two sensors on classic ESP32 ADC1 GPIO34/35; 12-bit light reads and calibrated thermistor millivolts |
 | Tags `device`, `location`, `esp32_id` using `WiFi.BSSIDstr()` | Added unique group/student tags, room/zone/model/sensor context; use ESP32 station MAC because BSSID identifies the router/AP |
 | Synchronises Sydney time, writes without an explicit timestamp in the loop | Retained NTP/TZ principle; explicitly send sample UTC epoch milliseconds and skip untimed readings |

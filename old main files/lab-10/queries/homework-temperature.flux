@@ -1,3 +1,4 @@
+// Historical homework data only; the active firmware now writes environment.
 // Graph for temperature; Table / Raw Data to display the student_id tag.
 from(bucket: "environment_lab")
     |> range(start: -15m)

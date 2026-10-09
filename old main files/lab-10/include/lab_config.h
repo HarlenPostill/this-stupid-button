@@ -56,5 +56,4 @@ constexpr float FIXED_OHMS = 10000.0f;
 constexpr float NTC_NOMINAL_OHMS = 10000.0f; // Your part is labelled 10 kΩ.
 constexpr float NTC_BETA = 3950.0f;          // Assumed kit part, not auto-detected.
 constexpr float TEMP_OFFSET_C = 0.0f;
-constexpr bool HOMEWORK_ONLY = false; // true: temperature-only lecture practice.
 }
